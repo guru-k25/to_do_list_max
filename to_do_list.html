@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced To-Do List</title>
+  <style>
+    body {
+    font-family: Arial, sans-serif;
+    background: url("https://i.pinimg.com/originals/89/be/2a/89be2a4c6ea6a565b23c3e1fab33d195.jpg") no-repeat center center fixed;    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px;
+    height: 100vh;
+    margin: 0;
+    }
+
+    .todo-container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+      width: 600px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 2rem;
+    }
+
+    #dateTime {
+      text-align: center;
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    .input-section {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 20px;
+      gap: 15px;
+    }
+
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 15px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    button.add {
+      padding: 15px 20px;
+      font-size: 1rem;
+      border: none;
+      background: slateblue;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .priority-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .priority-buttons {
+      display: flex;
+      gap: 20px;
+    }
+
+    .priority-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      cursor: pointer;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .priority-btn.selected {
+      box-shadow: 0 0 0 4px rgba(0,0,0,0.2), 0 0 0 8px rgba(0,0,0,0.1);
+    }
+
+    .red { background: red; }
+    .yellow { background: goldenrod; }
+    .green { background: green; }
+
+    .labels {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      font-size: 0.9rem;
+    }
+
+    .deadline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 10px;
+    }
+
+    li {
+      background: #f9f9f9;
+      padding: 15px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 1rem;
+      position: relative;
+    }
+
+    .task {
+      flex: 1;
+      margin-left: 10px;
+    }
+
+    .completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+
+    .delete {
+      background: crimson;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .countdown {
+      margin-right: 10px;
+      font-size: 0.8rem;
+      color: darkslategray;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    /* Priority colors for tasks */
+    .priority-red { border-left: 8px solid red; }
+    .priority-yellow { border-left: 8px solid goldenrod; }
+    .priority-green { border-left: 8px solid green; }
+  </style>
+</head>
+<body>
+  <div class="todo-container">
+    <div id="dateTime"></div>
+    <h2>To-Do List</h2>
+    <div class="input-section">
+      <div class="task-row">
+        <input type="text" id="taskInput" placeholder="Add a task...">
+        <div class="priority-box">
+          <div class="priority-buttons">
+            <button class="priority-btn red" onclick="setPriority('red', this)"></button>
+            <button class="priority-btn yellow" onclick="setPriority('yellow', this)"></button>
+            <button class="priority-btn green" onclick="setPriority('green', this)"></button>
+          </div>
+          <div class="labels">
+            <span>High</span><span>Medium</span><span>Low</span>
+          </div>
+        </div>
+        <button class="add" onclick="addTask()">Add</button>
+      </div>
+      <div class="deadline">
+        <label for="deadlineInput">Deadline: </label>
+        <input type="date" id="deadlineInput">
+      </div>
+    </div>
+    <ul id="taskList"></ul>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script>
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    let selectedPriority = "green"; 
+    let selectedButton = null;
+
+    function renderTasks() {
+      const taskList = document.getElementById("taskList");
+      taskList.innerHTML = "";
+
+      // sort by priority: red > yellow > green
+      const priorityOrder = { red: 1, yellow: 2, green: 3 };
+      tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+      tasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        li.classList.add(`priority-${task.priority}`);
+
+        const deadline = task.deadline ? new Date(task.deadline) : null;
+        let countdownHTML = "";
+        if (deadline) {
+          const timeLeft = deadline - new Date();
+          if (timeLeft > 0) {
+            const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+            countdownHTML = `${days}d ${hours}h`;
+          } else {
+            countdownHTML = "Expired";
+          }
+        }
+
+        li.innerHTML = `
+          <input type="checkbox" ${task.completed ? "checked" : ""} onchange="toggleComplete(${index})" style="width:20px; height:20px;">
+          <span class="task ${task.completed ? "completed" : ""}">${task.text}</span>
+          <span class="countdown">${countdownHTML}</span>
+          <button class="delete" onclick="deleteTask(${index})">X</button>
+        `;
+
+        taskList.appendChild(li);
+      });
+    }
+
+    function addTask() {
+      const input = document.getElementById("taskInput");
+      const taskText = input.value.trim();
+      const deadline = document.getElementById("deadlineInput").value || null;
+      if (taskText === "") return;
+
+      tasks.push({ 
+        text: taskText, 
+        completed: false, 
+        priority: selectedPriority, 
+        deadline: deadline, 
+        completedAt: null 
+      });
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+
+      input.value = "";
+      document.getElementById("deadlineInput").value = "";
+      renderTasks();
+    }
+
+    function toggleComplete(index) {
+      tasks[index].completed = !tasks[index].completed;
+      tasks[index].completedAt = tasks[index].completed ? new Date().toISOString() : null;
+
+      if (tasks[index].completed) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      }
+
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      renderTasks();
+    }
+
+    function setPriority(priority, button) {
+      selectedPriority = priority;
+      if (selectedButton) selectedButton.classList.remove("selected");
+      button.classList.add("selected");
+      selectedButton = button;
+    }
+
+    // Remove tasks checked > 24 hours ago
+    function cleanupTasks() {
+      const now = new Date();
+      tasks = tasks.filter(task => {
+        if (task.completed && task.completedAt) {
+          const completedTime = new Date(task.completedAt);
+          const diff = now - completedTime;
+          return diff < 24 * 60 * 60 * 1000;
+        }
+        return true;
+      });
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      renderTasks();
+    }
+    setInterval(cleanupTasks, 60 * 1000);
+
+    document.getElementById("taskInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        addTask();
+      }
+    });
+
+    function updateDateTime() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      const dateStr = now.toLocaleDateString(undefined, options);
+      const timeStr = now.toLocaleTimeString();
+      document.getElementById("dateTime").textContent = `${dateStr} | ${timeStr}`;
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
+    renderTasks();
+  </script>
+</body>
+</html>
